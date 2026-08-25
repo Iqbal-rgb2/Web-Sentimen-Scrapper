@@ -30,3 +30,6 @@ typing-inspection==0.4.4
 typing_extensions==4.16.0
 uritemplate==4.2.0
 urllib3==2.7.0
+streamlit>=1.30.0
+pandas>=2.0.0
+plotly>=5.15.0
