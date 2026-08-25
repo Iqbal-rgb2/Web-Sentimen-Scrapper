@@ -76,3 +76,6 @@ data/processed/*_checkpoint.csv
 *.sln
 *.swp
 *.swo
+
+# Agent persistent rules
+GEMINI.md
