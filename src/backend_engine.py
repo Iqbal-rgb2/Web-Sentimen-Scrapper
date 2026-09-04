@@ -448,3 +448,212 @@ INDONESIAN_STOPWORDS = {
 }
 
 # Kamus Kata Sifat / Opini Sentimen Berdasarkan 5 Kategori Operasional Restoran
+CATEGORY_SENTIMENT_LEXICON = {
+    'Produk/Makanan': {
+        'positif': [
+            'enak', 'lezat', 'mantap', 'gurih', 'segar', 'fresh', 'nikmat',
+            'empuk', 'juara', 'nagih', 'otentik', 'kering', 'renyah', 'pas',
+            'sedap', 'pedas', 'khas', 'recomended', 'rekomendasi'
+        ],
+        'negatif': [
+            'hambar', 'asin', 'keasinan', 'amis', 'alot', 'dingin', 'basi',
+            'anyep', 'keras', 'aneh', 'gosong', 'pahit', 'mentah', 'tengik',
+            'asam', 'minyak', 'berminyak', 'lembek', 'kurang'
+        ]
+    },
+    'Pelayanan/Staf': {
+        'positif': [
+            'ramah', 'cepat', 'sopan', 'sigap', 'baik', 'cekatan', 'responsif',
+            'membantu', 'gesit', 'tanggap', 'profesional', 'apik'
+        ],
+        'negatif': [
+            'lama', 'lambat', 'jutek', 'cuek', 'kasar', 'lemot', 'lelet',
+            'buruk', 'judes', 'sombong', 'parah', 'kecewa', 'lalai', 'lamaa'
+        ]
+    },
+    'Suasana/Tempat': {
+        'positif': [
+            'nyaman', 'bersih', 'adem', 'tenang', 'luas', 'estetik', 'bagus',
+            'rapi', 'santai', 'sejuk', 'terang', 'homey', 'cozy', 'apik'
+        ],
+        'negatif': [
+            'panas', 'kotor', 'gerah', 'bising', 'pengap', 'bau', 'sempit',
+            'jorok', 'gelap', 'becek', 'berisik', 'sumpek', 'kumuh'
+        ]
+    },
+    'Fasilitas/Parkir': {
+        'positif': [
+            'luas', 'terang', 'lengkap', 'mudah', 'aman', 'lega', 'memadai',
+            'gratis', 'tersedia', 'gampang', 'rapi'
+        ],
+        'negatif': [
+            'sempit', 'susah', 'gelap', 'becek', 'minim', 'kurang', 'ribet',
+            'sesak', 'sulit', 'antri', 'macet', 'bayar'
+        ]
+    },
+    'Harga': {
+        'positif': [
+            'murah', 'terjangkau', 'pas', 'hemat', 'bersahabat', 'sepadan',
+            'standar', 'worth', 'padat', 'ekonomis', 'merakyat'
+        ],
+        'negatif': [
+            'mahal', 'kemahalan', 'menjebak', 'nyesel', 'rugi', 'mencekik',
+            'kapok', 'zonk', 'terlalu', 'boncos', 'overprice', 'overpriced'
+        ]
+    }
+}
+
+def extract_keyword_tags_by_category(df):
+    """
+    Mengekstrak 1 Kata Kunci Sentimen Utama per Kategori Operasional
+    (1 kata positif dan 1 kata negatif untuk masing-masing dari 5 kategori).
+    Mengembalikan dictionary lengkap dengan pengelompokan per kategori dan daftar flat untuk UI.
+    """
+    categories = ['Produk/Makanan', 'Pelayanan/Staf', 'Suasana/Tempat', 'Fasilitas/Parkir', 'Harga']
+    result = {
+        'by_category': {},
+        'positif': [],
+        'negatif': []
+    }
+    
+    if df.empty or 'Review_Text' not in df.columns or 'Sentiment' not in df.columns:
+        return result
+        
+    for cat in categories:
+        result['by_category'][cat] = {'positif': {'keyword': '-', 'count': 0}, 'negatif': {'keyword': '-', 'count': 0}}
+        
+        # Filter ulasan yang relevan dengan kategori ini
+        cat_df = df[df['Kategori_Operasional'].astype(str).str.contains(cat, case=False, na=False)]
+        if cat_df.empty:
+            cat_df = df
+            
+        for sentiment_key, sentiment_label in [('positif', 'Positif'), ('negatif', 'Negatif')]:
+            sub_df = cat_df[cat_df['Sentiment'] == sentiment_label]
+            target_lexicon = CATEGORY_SENTIMENT_LEXICON.get(cat, {}).get(sentiment_key, [])
+            
+            words_list = []
+            for text in sub_df['Review_Text']:
+                if not text or pd.isna(text):
+                    continue
+                text_str = str(text).lower()
+                if text_str == 'hanya memberikan rating':
+                    continue
+                    
+                clean_text = re.sub(r'[^a-z\s]', ' ', text_str)
+                tokens = clean_text.split()
+                
+                for idx, token in enumerate(tokens):
+                    token_clean = token.strip()
+                    if token_clean in target_lexicon:
+                        # Abaikan kata positif jika didahului kata negasi (e.g. "tidak enak", "gak ramah")
+                        if sentiment_key == 'positif' and idx > 0 and tokens[idx - 1] in {'tidak', 'gak', 'nggak', 'ga', 'kurang', 'bukan', 'tak'}:
+                            continue
+                        words_list.append(token_clean)
+                        
+            word_counts = Counter(words_list).most_common(1)
+            if word_counts:
+                top_word, count = word_counts[0]
+            else:
+                top_word, count = (target_lexicon[0] if target_lexicon else '-'), 0
+                
+            entry = {'category': cat, 'keyword': top_word, 'count': count}
+            result['by_category'][cat][sentiment_key] = {'keyword': top_word, 'count': count}
+            result[sentiment_key].append(entry)
+            
+    return result
+
+# Alias untuk fleksibilitas kode pemanggil
+extract_keyword_tags = extract_keyword_tags_by_category
+
+def filter_reviews_by_keyword(df, keyword, category=None, sentiment=None):
+    """
+    Menyaring data ulasan berdasarkan kata kunci tertentu dalam Review_Text,
+    dengan filter opsional untuk Kategori Operasional dan Sentimen.
+    """
+    if df.empty or 'Review_Text' not in df.columns:
+        return df.copy()
+        
+    filtered_df = df.copy()
+    if category and 'Kategori_Operasional' in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df['Kategori_Operasional'].astype(str).str.contains(category, case=False, na=False)]
+        
+    if sentiment and 'Sentiment' in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df['Sentiment'] == sentiment]
+        
+    if keyword and str(keyword).strip() and str(keyword).strip() != '-':
+        pattern = re.escape(str(keyword).strip())
+        filtered_df = filtered_df[filtered_df['Review_Text'].astype(str).str.contains(pattern, case=False, na=False)]
+        
+    return filtered_df
+
+if __name__ == "__main__":
+    print("=== PENGUJIAN BACKEND ENGINE (FASE 2 SELESAI: LANGKAH 2.1, 2.2, & 2.3) ===")
+    
+    # Setup path ke file data lokal
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    DATA_PATH = os.path.join(BASE_DIR, "data", "date", "raw_reviews2_dated.csv")
+    
+    print(f"Membaca data dari: {DATA_PATH}\n")
+    
+    try:
+        # Test 1: Pemuatan dan Pembersihan Data
+        df_clean = load_clean_data(DATA_PATH)
+        print(f"[TEST 1] Berhasil memuat data!")
+        print(f"-> Total baris ulasan: {len(df_clean)}")
+        print(f"-> Rata-rata Rating Bintang: {df_clean['Rating'].mean():.2f}")
+        
+        empty_texts_count = len(df_clean[df_clean['Review_Text'] == 'Hanya memberikan rating'])
+        print(f"-> Jumlah ulasan tanpa komentar (hanya rating): {empty_texts_count}")
+        print("-> Tipe data kolom:")
+        for col in ['Exact_Date', 'Rating', 'Sentiment', 'Urgency_Level']:
+            print(f"   - {col}: {df_clean[col].dtype}")
+        print("-" * 50)
+        
+        # Test 2: Ekspansi Kategori Multi-label
+        df_expanded = expand_categories(df_clean)
+        print(f"[TEST 2] Berhasil mengekspansi kategori operasional!")
+        print(f"-> Total baris setelah pemisahan multi-label: {len(df_expanded)}")
+        print("-> Distribusi jumlah ulasan per Kategori Tunggal:")
+        cat_counts = df_expanded['Kategori_Tunggal'].value_counts()
+        for cat, val in cat_counts.items():
+            print(f"   - {cat}: {val} ulasan")
+        print("-" * 50)
+        
+        # Test 3: Segmentasi Pengulas
+        df_segmented = segment_user_activity(df_clean)
+        print(f"[TEST 3] Berhasil mengelompokkan segmen keaktifan pengulas!")
+        print("-> Distribusi jumlah ulasan per Segmen Keaktifan:")
+        seg_counts = df_segmented['User_Segment'].value_counts()
+        for seg, val in seg_counts.items():
+            print(f"   - {seg}: {val} ulasan")
+        print("-" * 50)
+        
+        # Test 4: Kalkulator 10 Insight
+        insights = calculate_10_insights(df_clean)
+        print(f"[TEST 4] Berhasil menyusun 10 Wawasan Operasional (10 Insights)!")
+        for idx, item in insights.items():
+            print(f"\n[{idx}] {item['title']}:")
+            print(f"    \"{item['text']}\"")
+        print("-" * 50)
+        
+        # Test 5: Generator Kata Tren per Kategori (1 Kata per Kategori)
+        cat_keywords = extract_keyword_tags_by_category(df_clean)
+        print(f"[TEST 5] Berhasil mengekstrak 1 Kata Tren Sentimen per Kategori Operasional!\n")
+        
+        print("=== RINGKASAN KATA TREN PER KATEGORI ===")
+        for cat, values in cat_keywords['by_category'].items():
+            pos = values['positif']
+            neg = values['negatif']
+            print(f"[{cat}]")
+            print(f"   👍 Pujian Utama: '{pos['keyword']}' ({pos['count']}x disebut)")
+            print(f"   👎 Keluhan Utama: '{neg['keyword']}' ({neg['count']}x disebut)")
+            
+        print("\n-> Uji coba filter ulasan kategori 'Pelayanan/Staf' dengan kata keluhan 'lama':")
+        df_filtered = filter_reviews_by_keyword(df_clean, 'lama', category='Pelayanan/Staf', sentiment='Negatif')
+        print(f"   Ditemukan {len(df_filtered)} ulasan keluhan spesifik yang cocok.")
+            
+        print("=" * 50)
+        print("SEMUA PENGUJIAN FASE 2 BERHASIL 100%!")
+        
+    except Exception as e:
+        print(f"[ERROR] Terjadi kesalahan dalam pengujian: {e}")
