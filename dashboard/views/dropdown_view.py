@@ -2,8 +2,8 @@ import streamlit as st
 
 def render_dropdown_view():
     """
-    Menampilkan antarmuka Halaman Dropdown Kategori & Filter Data Ulasan.
+    Menampilkan antarmuka Halaman Filter Kategori.
     """
-    st.title("🔍 Eksplorasi Data & Filter Dropdown Kategori")
-    st.markdown("Penyaringan data ulasan secara mendalam berdasarkan kategori operasional, tanggal, rating, dan sentimen.")
+    st.title("🔍 Filter Kategori")
+    st.caption("Penyaringan data ulasan mendalam berdasarkan kategori operasional dan sentimen.")
     st.info("Fitur filter multi-kriteria dan editor koreksi ulasan akan diimplementasikan pada Langkah 4.5.")
