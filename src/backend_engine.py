@@ -11,14 +11,118 @@ if sys.stdout.encoding != 'utf-8':
     except Exception:
         pass
 
-def load_clean_data(file_path):
+REQUIRED_COLUMNS = [
+    'Review_Text',
+    'Rating',
+    'Sentiment',
+    'Exact_Date',
+    'Kategori_Operasional',
+    'Urgency_Level'
+]
+
+OPTIONAL_COLUMNS = [
+    'User_Name',
+    'Is_Local_Guide',
+    'User_Total_Reviews',
+    'Review_Date',
+    'Has_Image'
+]
+
+COLUMN_DISPLAY_MAP = {
+    'User_Name': 'Nama Pengguna',
+    'Is_Local_Guide': 'Local Guide?',
+    'User_Total_Reviews': 'Total Ulasan Akun',
+    'Rating': 'Rating',
+    'Review_Date': 'Waktu Relatif',
+    'Has_Image': 'Ada Foto?',
+    'Review_Text': 'Isi Ulasan',
+    'Sentiment': 'Sentimen',
+    'Kategori_Operasional': 'Kategori Aspek',
+    'Urgency_Level': 'Tingkat Urgensi',
+    'Exact_Date': 'Tanggal Ulasan'
+}
+
+def format_display_dataframe(df, max_rows=None, max_text_len=60, max_cat_len=30):
     """
-    Membaca dan membersihkan dataset ulasan dari file CSV lokal.
+    Menyiapkan salinan DataFrame untuk tampilan antarmuka (UI Display):
+    1. Mengubah nama kolom menjadi Bahasa Indonesia yang ramah pengguna (konsep SQL AS).
+    2. Memformat Exact_Date menjadi YYYY-MM-DD murni tanpa jam (00:00:00).
+    3. Memotong teks panjang dengan elipsis (...) agar tampilan tabel tetap rapi dan tidak padat.
+    
+    Catatan: Fungsi ini TIDAK mengubah DataFrame asli pada session_state/database.
     """
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Berkas data tidak ditemukan di path: {file_path}")
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+        return pd.DataFrame()
         
-    df = pd.read_csv(file_path)
+    preview = df.head(max_rows).copy() if max_rows is not None else df.copy()
+    
+    # 1. Format Exact_Date
+    if 'Exact_Date' in preview.columns:
+        preview['Exact_Date'] = pd.to_datetime(preview['Exact_Date'], errors='coerce').dt.strftime('%Y-%m-%d')
+        preview['Exact_Date'] = preview['Exact_Date'].fillna('-')
+        
+    # 2. Batasi teks Review_Text
+    if 'Review_Text' in preview.columns:
+        preview['Review_Text'] = preview['Review_Text'].astype(str).apply(
+            lambda x: (x[:max_text_len] + '...') if len(x) > max_text_len else x
+        )
+        
+    # 3. Batasi teks Kategori_Operasional
+    if 'Kategori_Operasional' in preview.columns:
+        preview['Kategori_Operasional'] = preview['Kategori_Operasional'].astype(str).apply(
+            lambda x: (x[:max_cat_len] + '...') if len(x) > max_cat_len else x
+        )
+        
+    # 4. Rename kolom menggunakan display map (SQL AS alias)
+    preview = preview.rename(columns=COLUMN_DISPLAY_MAP)
+    return preview
+
+def validate_review_dataframe(df):
+    """
+    Memvalidasi apakah DataFrame ulasan memiliki kolom-kolom wajib yang dibutuhkan sistem analitik.
+    
+    Returns:
+        tuple (is_valid: bool, missing_cols: list, found_cols: list)
+    """
+    if df is None or not isinstance(df, pd.DataFrame):
+        return False, REQUIRED_COLUMNS, []
+    if df.empty:
+        return False, ["Dataset kosong (0 baris)"], list(df.columns)
+        
+    found_cols = list(df.columns)
+    missing_cols = [col for col in REQUIRED_COLUMNS if col not in found_cols]
+    is_valid = len(missing_cols) == 0
+    return is_valid, missing_cols, found_cols
+
+def get_default_data_path():
+    """
+    Mengembalikan path berkas data default ulasan yang paling lengkap.
+    Memprioritaskan data/date/raw_reviews2_dated.csv (dengan Exact_Date),
+    atau fallback ke data/processed/raw_reviews2_enriched2.csv.
+    """
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    dated_path = os.path.join(base_dir, "data", "date", "raw_reviews2_dated.csv")
+    if os.path.exists(dated_path):
+        return dated_path
+    processed_path = os.path.join(base_dir, "data", "processed", "raw_reviews2_enriched2.csv")
+    if os.path.exists(processed_path):
+        return processed_path
+    return None
+
+def load_clean_data(file_source):
+    """
+    Membaca dan menstandarkan dataset ulasan dari path berkas CSV, buffer memori (UploadedFile),
+    maupun objek DataFrame langsung.
+    """
+    if isinstance(file_source, pd.DataFrame):
+        df = file_source.copy()
+    elif isinstance(file_source, str):
+        if not os.path.exists(file_source):
+            raise FileNotFoundError(f"Berkas data tidak ditemukan di path: {file_source}")
+        df = pd.read_csv(file_source)
+    else:
+        # Menangani objek file-like (BytesIO, StringIO, atau Streamlit UploadedFile)
+        df = pd.read_csv(file_source)
     
     # 1. Konversi Tanggal Eksak ke datetime
     if 'Exact_Date' in df.columns:
@@ -67,6 +171,17 @@ def load_clean_data(file_path):
         df['Has_Image'] = df['Has_Image'].fillna('Tidak')
     else:
         df['Has_Image'] = 'Tidak'
+
+    if 'User_Name' in df.columns:
+        df['User_Name'] = df['User_Name'].fillna('Anonim')
+    else:
+        df['User_Name'] = 'Anonim'
+
+    if 'User_Total_Reviews' not in df.columns:
+        df['User_Total_Reviews'] = 1
+
+    if 'Review_Date' not in df.columns:
+        df['Review_Date'] = ''
         
     return df
 
