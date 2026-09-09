@@ -11,6 +11,7 @@ from src.backend_engine import (
     COLUMN_DISPLAY_MAP,
     get_default_data_path
 )
+from dashboard.components.header import render_page_header
 
 # Struktur kolom template CSV standar
 TEMPLATE_COLUMNS = [
@@ -139,7 +140,10 @@ def render_upload_view():
     Menampilkan antarmuka Halaman Upload & Template (Langkah 4.1):
     UI bersih dan terstruktur dengan judul ringkas maksimal 3 kata.
     """
-    st.title("Upload & Template")
+    render_page_header(
+        "📤 Upload & Template",
+        "Unggah dataset ulasan baru dan unduh template data CSV standar."
+    )
 
     tab_upload, tab_template = st.tabs([
         "⬆️ Unggah Data", 

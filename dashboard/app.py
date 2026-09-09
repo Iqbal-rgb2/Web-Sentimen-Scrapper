@@ -84,7 +84,7 @@ def inject_custom_css():
     Tulisan nyaman dibaca (ukuran proporsional), menghilangkan bulatan radio,
     dan warna kartu yang bersih alami di tempat gelap maupun terang.
     """
-    st.markdown("""
+    st.html("""
     <style>
     /* 1. Sembunyikan bulatan radio bawaan browser secara tuntas */
     div[data-testid="stRadio"] label > div:first-child,
@@ -175,13 +175,94 @@ def inject_custom_css():
         margin: 12px 0 !important;
     }
 
-    /* 6. Ruang scroll konten atas agar judul tidak terpotong */
-    .block-container {
-        padding-top: 3.5rem !important;
-        padding-bottom: 2rem !important;
-    }
+    /* 6. Single Unified Top Bar (Terkunci di Top: 0, Diam Mutlak / Zero Movement Saat Scroll) */
     header[data-testid="stHeader"] {
         background: transparent !important;
+        height: 2.875rem !important;
+        border: none !important;
+        box-shadow: none !important;
+        pointer-events: none !important;
+    }
+
+    header[data-testid="stHeader"] * {
+        pointer-events: auto !important;
+    }
+
+    /* Sembunyikan elemen kosong dari st.markdown style agar tidak memakan ruang/tinggi di atas */
+    div[data-testid="stElementContainer"]:has(> div[data-testid="stMarkdownContainer"] > style) {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Menimpa padding-top 6rem Emotion Streamlit dengan hierarki selektor spesifisitas penuh */
+    div[data-testid="stAppViewContainer"] section[data-testid="stMain"] [data-testid="stMainBlockContainer"],
+    div[data-testid="stAppViewContainer"] section[data-testid="stMain"] .block-container,
+    div#Main,
+    div[data-testid="stMainBlockContainer"],
+    div.stMainBlockContainer,
+    .stMainBlockContainer,
+    .block-container {
+        padding-top: 0 !important;
+        padding-bottom: 2rem !important;
+        padding-left: 2.5rem !important;
+        padding-right: 2.5rem !important;
+        margin-top: 0 !important;
+        max-width: 100% !important;
+    }
+
+    /* Hilangkan margin & padding pada blok vertikal utama */
+    div[data-testid="stVerticalBlock"],
+    div[data-testid="stVerticalBlockBorderWrapper"],
+    div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"]:first-child {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+
+    /* Header Terkunci di Top: 0 (DIAM MUTLAK / 0px Gerakan Saat Di-scroll) */
+    div[data-testid="stElementContainer"]:has(.page-sticky-header),
+    .page-sticky-header {
+        position: -webkit-sticky !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 995 !important;
+    }
+
+    .page-sticky-header {
+        background-color: #1e2638 !important;
+        margin-left: -2.5rem !important;
+        margin-right: -2.5rem !important;
+        padding-left: 2.5rem !important;
+        padding-right: 180px !important; /* Ruang lega untuk tombol Deploy & menu 3-titik di pojok kanan */
+        padding-top: 0.95rem !important;
+        padding-bottom: 0.95rem !important;
+        margin-top: 0 !important;
+        margin-bottom: 1.5rem !important;
+        border-radius: 0 !important;
+        border-top: none !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+    }
+
+    .page-sticky-title {
+        font-size: 1.75rem !important;
+        font-weight: 700 !important;
+        color: #f8fafc !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 1.25 !important;
+        letter-spacing: -0.02em !important;
+    }
+
+    .page-sticky-caption {
+        font-size: 0.90rem !important;
+        color: #94a3b8 !important;
+        margin: 4px 0 0 0 !important;
+        padding: 0 !important;
+        line-height: 1.35 !important;
     }
 
     /* 7. Perapian Posisi Toolbar Tabel Data (Eye, Download, Search, Fullscreen) */
@@ -234,15 +315,101 @@ def inject_custom_css():
         font-size: 0.98rem !important;
     }
 
-    /* 9. Penyelarasan Tinggi Box Container Berdampingan */
+    /* 9. Penyeragaman Tinggi Box Container Berdampingan (KPI & Diagram) */
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"],
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"],
     div[data-testid="stHorizontalBlock"] > div[data-testid="column"] > div[data-testid="stVerticalBlockBorderWrapper"] {
         height: 100% !important;
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
     }
+
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] > div,
     div[data-testid="stHorizontalBlock"] > div[data-testid="column"] > div[data-testid="stVerticalBlockBorderWrapper"] > div {
         height: 100% !important;
         display: flex !important;
         flex-direction: column !important;
-        justify-content: center !important;
+        justify-content: space-between !important;
+    }
+
+    /* Penyeragaman Tinggi Minimal Khusus 4 Box KPI di Atas */
+    div[data-testid="stHorizontalBlock"]:has(div[data-testid="stMetric"]) > div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"],
+    div[data-testid="stHorizontalBlock"]:has(div[data-testid="stMetric"]) > div[data-testid="column"] > div[data-testid="stVerticalBlockBorderWrapper"] {
+        min-height: 145px !important;
+    }
+
+    /* Warna Merah Khusus Angka Metrik Box 4 (Kasus Urgensi Tinggi) */
+    div[data-testid="stHorizontalBlock"]:has(div[data-testid="stMetric"]) > div[data-testid="stColumn"]:nth-child(4) div[data-testid="stMetricValue"],
+    div[data-testid="stHorizontalBlock"]:has(div[data-testid="stMetric"]) > div[data-testid="column"]:nth-child(4) div[data-testid="stMetricValue"] {
+        color: #ef4444 !important;
+    }
+
+    /* 10. Kartu Metrik KPI Modern & Proporsional (Pengganti st.metric dengan Padding dan Penyelarasan Sempurna) */
+    div[data-testid="stColumn"] > div[data-testid="stElementContainer"]:has(.kpi-metric-card) {
+        height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .kpi-metric-card {
+        background-color: #172030;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        padding: 18px 20px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        min-height: 135px;
+        height: 100%;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-sizing: border-box;
+        transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .kpi-metric-card:hover {
+        border-color: rgba(255, 255, 255, 0.22);
+        transform: translateY(-2px);
+    }
+
+    .kpi-label {
+        font-size: 0.88rem;
+        color: #94a3b8;
+        font-weight: 500;
+        margin-bottom: 6px;
+        letter-spacing: 0.01em;
+    }
+
+    .kpi-value {
+        font-size: 1.85rem;
+        font-weight: 700;
+        line-height: 1.2;
+        margin-bottom: 8px;
+        letter-spacing: -0.02em;
+    }
+
+    .kpi-caption {
+        font-size: 0.82rem;
+        color: #64748b;
+        line-height: 1.4;
+        margin: 0;
+    }
+
+    /* Dropdown Selectbox Murni Klik (Nonaktifkan Kursor Kelap-Kelip & Manual Typing) */
+    div[data-testid="stSelectbox"] input {
+        caret-color: transparent !important;
+        cursor: pointer !important;
+        user-select: none !important;
+    }
+    div[data-testid="stSelectbox"] [data-baseweb="select"] {
+        cursor: pointer !important;
     }
 
     /* 10. Pewarnaan Box / Container Utama (Abu-Abu Slate Elegan Membedakan dari Background) */
@@ -254,6 +421,7 @@ def inject_custom_css():
     }
 
     /* 11. Box Diagram Batang di dalam Box Ringkasan (Abu-Abu Lebih Terang untuk Kedalaman / Layering) */
+    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"],
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"] > div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #243144 !important;
         border: 1px solid rgba(255, 255, 255, 0.18) !important;
@@ -307,7 +475,7 @@ def inject_custom_css():
         border-color: rgba(255, 255, 255, 0.35) !important;
     }
     </style>
-    """, unsafe_allow_html=True)
+    """)
 
 def main():
     # 1. Inisialisasi Session State di awal aplikasi
